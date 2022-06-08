@@ -11,6 +11,9 @@ const promise = new Promise((resolve, reject) => {
   .then(() => { console.log() })
   .then(() => { console.log(), () => { console.log('then33-catch') } })
   .catch((err) => console.log('catch', err), (err) => console.log('cathc的err'))
-  .then(() => console.log('catch之后的then'), err => console.log('catch after catch'))
+  .catch((err) => console.log('catch2', err), (err) => console.log('cathc的err2'))
+  // .then(() => console.log('catch之后的then'), err => console.log('catch after catch'))
+  .finally(() => console.log('finaly-then'))
+  .then(res => console.log('final-after-then'), err => console.log('final-after-catch'))
 
 console.log(promise)
