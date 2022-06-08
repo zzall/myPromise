@@ -16,11 +16,45 @@ class myPromise {
     this.promiseStatus = 'pending';
     this.fulfilledCallbacks = [];
     this.rejectedCallbacks = [];
+    this.finalCallbacks = [];
+    this.catchCallbacks = [];
   }
   initBind() {
     this.resolve = this.resolve.bind(this)
     this.reject = this.reject.bind(this)
     this.then = this.then.bind(this)
+    this.final = this.final.bind(this)
+    this.catch = this.catch.bind(this)
+  }
+  final(cb) {
+    cb = typeof cb === 'function' ? cb : (() => this.promiseResult);
+    this.finalCallbacks.push(cb)
+  }
+  catch(catchCallback) {
+    catchCallback = typeof catchCallback === 'function' ? catchCallback : (() => this.promiseResult);
+    const catchPromise = new myPromise((_resolve, _reject) => {
+      // catch是无论内部是否有错误，返回的promise状态都是成功的
+      const resolvePromise = (cb) => {
+        try {
+          const t = cb(this.promiseResult)
+          if (t instanceof myPromise) {
+            t.then(_resolve, _reject)
+          } else {
+            _resolve(t)
+          }
+        } catch (err) {
+          _reject(err)
+        }
+      }
+      if (this.promiseStatus === 'rejected') {
+        return;
+      } else if (this.promiseStatus === 'rejected') {
+        resolvePromise(catchCallback)
+      } else {
+        this.catchCallbacks.push(function () { resolvePromise(catchCallback) })
+      }
+    })
+    return catchPromise;
   }
   resolve(res) {
     if (this.promiseStatus !== 'pending') return;
@@ -29,14 +63,23 @@ class myPromise {
     while (this.fulfilledCallbacks.length) {
       this.fulfilledCallbacks.shift()(this.promiseResult)
     }
+    // 如果没有fulfilledCallbacks里的数组被执行完且存在final的时候触发
+    if (!this.fulfilledCallbacks.length && this.finalCallbacks.length) {
+      return this.finalCallbacks.shift()(this.promiseResult)
+    }
   }
   reject(err) {
     if (this.promiseStatus !== 'pending') return;
     this.promiseResult = err;
     this.promiseStatus = 'rejected'
     while (this.rejectedCallbacks.length) {
-      // (this.promiseResult)
       this.rejectedCallbacks.shift()(this.promiseResult)
+    }
+    if (!this.rejectedCallbacks.length && this.catchCallbacks.length) {
+      return this.catchCallbacks.shift()(this.promiseResult)
+    }
+    if (!this.rejectedCallbacks.length && this.finalCallbacks.length) {
+      return this.finalCallbacks.shift()(this.promiseResult)
     }
   }
   then(resolve, reject) {
@@ -56,14 +99,11 @@ class myPromise {
             // 说明返回的是myPromise
             t.then(_resolve, _reject)
           } else {
+            // 如果是非promise默认成功，直接执行到下一个then的resolve
             _resolve(t)
           }
         } catch (err) {
-          // 如果then中传入的resolve方法体中有报错，则先执行本次then的reject
-          reject(err)
-          // 然后再触发下一个then的catch
           _reject(err)
-          // throw new Error(err)
         }
       }
 
@@ -85,7 +125,6 @@ class myPromise {
         // this.rejectedCallbacks.push(pushFn)
         this.rejectedCallbacks.push(function () { resolvePromise(reject) })
       }
-
     })
     return thenPromise;
   }
@@ -120,17 +159,22 @@ const test = new myPromise((resolve, reject) => {
   .then(
     function (res) {
       console.log('我是第三个then的打印', res)
-      reject('错误')
+      // throw('错误')
+      console.lo3g('1',);
     },
     err => console.log('我是第三个then的catch', err)
   )
   .then(
     res => {
-      console.log('我是第四个then的打印', res)
+      console.lo1g('我是第四个then的打印', res)
     },
     err => console.log('我是第四个catch', err)
   )
+  .catch(err => console.log('我是catch', err))
+  .then(res => console.log('catch之后的then'), err => console.log('catch之后的catch'))
 // console.log(test)
 console.log('22')
 
+myPromise.test = 'test22'
 
+console.log('static', myPromise.getName, myPromise.test, new myPromise().test);
